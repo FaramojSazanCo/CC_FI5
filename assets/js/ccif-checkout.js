@@ -10,21 +10,23 @@ jQuery(function($) {
 
     /**
      * Toggles the visibility of fields for Real vs. Legal persons.
+     * The wrappers are hidden by default via CSS.
      */
     function togglePersonFields() {
         var personType = $('#billing_person_type').val();
         var $realPersonWrapper = $('.ccif-real-person-fields-wrapper');
         var $legalPersonWrapper = $('.ccif-legal-person-fields-wrapper');
 
+        // Use a more efficient slide toggle
         if (personType === 'real') {
-            $realPersonWrapper.show();
-            $legalPersonWrapper.hide();
+            $legalPersonWrapper.slideUp(250);
+            $realPersonWrapper.slideDown(350);
         } else if (personType === 'legal') {
-            $legalPersonWrapper.show();
-            $realPersonWrapper.hide();
+            $realPersonWrapper.slideUp(250);
+            $legalPersonWrapper.slideDown(350);
         } else {
-            $realPersonWrapper.hide();
-            $legalPersonWrapper.hide();
+            $realPersonWrapper.slideUp(250);
+            $legalPersonWrapper.slideUp(250);
         }
     }
 
@@ -34,8 +36,8 @@ jQuery(function($) {
     function updateRequiredStatus() {
         var isInvoiceRequested = $('#billing_invoice_request').is(':checked');
 
-        // Target all fields within the person/company box
-        $('.person-info-box .form-row').each(function() {
+        // Target all fields within the new buyer info card.
+        $('.ccif-buyer-info-card .form-row').each(function() {
             var $wrapper = $(this);
             var $input = $wrapper.find('input, select');
 

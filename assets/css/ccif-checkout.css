@@ -156,18 +156,49 @@
 .ccif-hint {
     font-size: 0.85rem;
     color: #6c757d; /* A secondary, muted text color */
-    margin-top: 15px;
+    margin-top: 10px;
     margin-bottom: 0;
     text-align: right;
+    line-height: 1.6;
 }
 
-/* --- Specific Box Styling --- */
-.invoice-request-box {
-    background-color: #e8f5e9; /* Light green */
-    border-color: #a5d6a7; /* A slightly darker green border */
+
+/* --- Conditional Field Wrappers --- */
+/* Hide these by default; JS will handle showing them with a slide effect. */
+.ccif-real-person-fields-wrapper,
+.ccif-legal-person-fields-wrapper {
+    display: none;
+    /* Add a little top margin when they are shown */
+    margin-top: 20px;
 }
+
+
+/* --- Card Specific Styling --- */
+/* Card 1: Invoice Request */
+.ccif-invoice-request-card {
+    background-color: #f0f7ff; /* A very light blue */
+    border-color: #cce0ff; /* A slightly darker blue for the border */
+}
+
+.ccif-invoice-request-card label {
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+/* Card 2: Buyer Info - Adjust spacing for the person type dropdown */
+.ccif-buyer-info-card .woocommerce-input-wrapper {
+    width: 100%; /* Ensure select takes full width */
+}
+
+/* Card 4: Order Notes - Adjust textarea height */
+.ccif-order-notes-card textarea {
+    min-height: 120px;
+    resize: vertical;
+}
+
 
 /* --- Header Icons --- */
+/* We are using H2s now which don't have these specific classes */
 .ccif-box h2::before {
     display: inline-block;
     font-size: 1.2rem;
@@ -175,14 +206,19 @@
     vertical-align: -2px;
 }
 
-.ccif-person-info-header::before {
+/* Add icons to the new card titles */
+.ccif-invoice-request-card h2::before {
+    content: '🧾'; /* Receipt Icon */
+}
+
+.ccif-buyer-info-card h2::before {
     content: '👤'; /* User icon */
 }
 
-.ccif-address-info-header::before {
+.ccif-shipping-info-card h2::before {
     content: '🚚'; /* Truck/Shipping icon */
 }
 
-.ccif-order-notes-header::before {
+.ccif-order-notes-card h2::before {
     content: '📝'; /* Notes icon */
 }
