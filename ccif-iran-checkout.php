@@ -185,8 +185,10 @@ class CCIF_Iran_Checkout_Rebuild {
     }
 
     private function normalize_persian_string($string) {
-        // Replace common Arabic characters with Persian equivalents for better matching.
+        // Replace common Arabic characters with Persian equivalents.
         $string = str_replace(['ي', 'ك', 'آ'], ['ی', 'ک', 'ا'], $string);
+        // Remove the word "استان " (province of) from the beginning of the string.
+        $string = preg_replace('/^استان\s+/', '', $string);
         // Remove non-breaking spaces and trim whitespace from the beginning and end.
         $string = trim(str_replace('&nbsp;', ' ', $string));
         return $string;
@@ -229,8 +231,13 @@ class CCIF_Iran_Checkout_Rebuild {
                     // Find the official WooCommerce code for the current province name.
                     if (isset($normalized_name_to_code_map[$normalized_province_name])) {
                         $state_code = $normalized_name_to_code_map[$normalized_province_name];
+                        $normalized_cities = [];
+                        foreach($province['cities'] as $city_name) {
+                            // Normalize each city name to prevent data mismatches with shipping zone settings.
+                            $normalized_cities[] = $this->normalize_persian_string($city_name);
+                        }
                         // Use the official state code as the key for the cities array.
-                        $cities[$state_code] = $province['cities'];
+                        $cities[$state_code] = $normalized_cities;
                     }
                 }
             }
