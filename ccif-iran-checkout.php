@@ -341,11 +341,13 @@ class CCIF_Iran_Checkout_Rebuild {
 
 
     private function log_message( $message ) {
+        // Use PHP's native error_log() to ensure output goes to wp-content/debug.log
+        // when WP_DEBUG and WP_DEBUG_LOG are enabled in wp-config.php.
         if ( defined( 'WP_DEBUG' ) && WP_DEBUG === true ) {
-            if ( function_exists( 'wc_get_logger' ) ) {
-                $logger = wc_get_logger();
-                $logger->debug( $message, [ 'source' => 'ccif-iran-checkout' ] );
+            if (is_array($message) || is_object($message)) {
+                $message = print_r($message, true);
             }
+            error_log('[CCIF DEBUG] ' . $message);
         }
     }
 }
