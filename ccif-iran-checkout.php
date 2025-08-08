@@ -52,19 +52,28 @@ class CCIF_Iran_Checkout_Rebuild {
         // Custom layout hooks
         // --- REMOVED OLD LAYOUT HOOKS ---
 
-        // This single action will now render our entire custom layout.
-        add_action( 'woocommerce_before_checkout_billing_form', [ $this, 'render_custom_form_layout' ] );
+        // This action renders our custom layout inside the main billing section.
+        add_action( 'woocommerce_checkout_billing', [ $this, 'render_custom_form_layout' ], 5 );
+    }
 
-        // We need to prevent the default billing form from rendering.
-        add_filter( 'woocommerce_checkout_billing_form', '__return_empty_string' );
+    public function remove_rendered_billing_fields( $fields ) {
+        // Unset the billing fields so WooCommerce doesn't render them again.
+        unset( $fields['billing'] );
+
+        // Clean up the filter after it has run.
+        remove_filter( 'woocommerce_checkout_fields', [ $this, 'remove_rendered_billing_fields' ], 9999 );
+
+        return $fields;
     }
 
     public function render_custom_form_layout() {
         $checkout = WC()->checkout();
+        // We get the fields but don't unset them here.
         $fields = $checkout->get_checkout_fields();
         $billing_fields = $fields['billing'];
         $order_fields = $fields['order'];
 
+        // Start the custom layout wrapper
         echo '<div class="ccif-checkout-form">';
 
         // Card 1: Invoice Request
@@ -112,6 +121,10 @@ class CCIF_Iran_Checkout_Rebuild {
         echo '</div>';
 
         echo '</div>'; // Close .ccif-checkout-form
+
+        // IMPORTANT: Add a filter to remove the original billing fields *after* we have rendered them.
+        // This prevents WooCommerce from rendering them a second time.
+        add_filter( 'woocommerce_checkout_fields', [ $this, 'remove_rendered_billing_fields' ], 9999 );
     }
 
 
