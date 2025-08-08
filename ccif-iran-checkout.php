@@ -55,6 +55,15 @@ class CCIF_Iran_Checkout_Rebuild {
 
         // This action renders the "Additional Notes" card after the billing form
         add_action( 'woocommerce_after_checkout_billing_form', [ $this, 'render_order_notes_card' ], 15 );
+
+        // This filter tells WooCommerce to treat the city field as a dropdown, preventing AJAX issues.
+        add_filter( 'woocommerce_get_country_locale', [ $this, 'fix_iran_city_locale' ] );
+    }
+
+    public function fix_iran_city_locale( $locale ) {
+        $locale['IR']['city']['type'] = 'select';
+        $locale['IR']['city']['required'] = true;
+        return $locale;
     }
 
     public function override_billing_form_template( $template, $template_name, $template_path ) {
