@@ -56,36 +56,22 @@ jQuery(function($) {
      * Populates the city dropdown based on the selected state.
      */
     function populateCities() {
-        console.log('CCIF DEBUG: populateCities() triggered.');
-
         var state = $('#billing_state').val();
         var $cityField = $('#billing_city');
-
-        console.log('CCIF DEBUG: Selected state code:', state);
-        console.log('CCIF DEBUG: Full ccifData object:', ccifData);
-
-        // It's possible the `cities` variable is not in the global scope inside this function
-        // in some JS environments. Accessing it directly from ccifData is more robust.
         var cities = (ccifData && ccifData.cities) ? ccifData.cities : {};
-        console.log('CCIF DEBUG: Cities object being used:', cities);
 
-        // Remember the current value if it exists
         var currentCity = $cityField.val();
 
         $cityField.empty().append('<option value="">' + 'ابتدا استان را انتخاب کنید' + '</option>');
 
         if (state && cities[state]) {
-            console.log('CCIF DEBUG: Match found for state ' + state + '. Cities:', cities[state]);
             $.each(cities[state], function(index, cityName) {
-                // Create new option, select it if it matches the remembered value
                 $cityField.append($('<option>', {
                     value: cityName,
                     text: cityName,
                     selected: cityName === currentCity
                 }));
             });
-        } else {
-            console.log('CCIF DEBUG: No match found for state ' + state + ' in cities object.');
         }
     }
 
@@ -101,6 +87,15 @@ jQuery(function($) {
     // Populate cities on load if a state is already selected (e.g., on form validation error)
     // Also, trigger it on updated_checkout which is fired by WooCommerce after state field changes.
     $(document.body).on('updated_checkout', function() {
+        // This is our final debug point. Let's see what the city field looks like AFTER
+        // WooCommerce has finished its own AJAX updates.
+        var cityFieldHTML = $('#billing_city_field').html();
+        console.log('--- CCIF FINAL DEBUG ---');
+        console.log('Event "updated_checkout" fired.');
+        console.log('HTML content of city field wrapper (#billing_city_field):');
+        console.log(cityFieldHTML);
+        console.log('----------------------');
+
         // A small delay can help ensure our script runs after WooCommerce has finished its own updates.
         setTimeout(function() {
             if ($('#billing_state').val() && $('#billing_city').children().length <= 1) {
