@@ -49,30 +49,19 @@ class CCIF_Iran_Checkout_Rebuild {
         // Enqueue scripts and styles
         add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_assets' ] );
 
-        // --- New Template Override Logic ---
-        add_filter( 'woocommerce_locate_template', [ $this, 'override_billing_form_template' ], 10, 3 );
-        add_action( 'woocommerce_after_checkout_form', [ $this, 'render_order_notes_card' ], 10 );
-    }
-
-    public function override_billing_form_template( $template, $template_name, $template_path ) {
-        if ( 'checkout/form-billing.php' === $template_name ) {
-            $plugin_template_path = plugin_dir_path( __FILE__ ) . 'woocommerce/' . $template_name;
-            if ( file_exists( $plugin_template_path ) ) {
-                return $plugin_template_path;
-            }
-        }
-        return $template;
+        // This action renders the "Additional Notes" card after the billing form
+        add_action( 'woocommerce_after_checkout_billing_form', [ $this, 'render_order_notes_card' ], 10 );
     }
 
     public function render_order_notes_card( $checkout ) {
+        // This function is now responsible for rendering the 4th card.
+        // It's hooked to run after the main billing fields (which now include our cards).
         if ( ! is_a( $checkout, 'WC_Checkout' ) ) {
             $checkout = WC()->checkout();
         }
 
-        // Prevent the default order notes field from rendering in its original location
         add_filter('woocommerce_enable_order_notes_field', '__return_false');
 
-        // Manually render the field inside our custom card structure
         if ( ! empty( $this->order_notes_field ) ) {
             echo '<div class="ccif-box ccif-order-notes-card">';
             echo '<h2>توضیحات تکمیلی</h2>';
@@ -231,24 +220,37 @@ class CCIF_Iran_Checkout_Rebuild {
 
         // --- 1. Define our NEW custom fields that the user will see ---
         $custom_fields = [
+            // --- Card 1 HTML Wrappers and Fields ---
+            'card_1_start' => ['type' => 'html', 'priority' => 0, 'html' => '<div class="ccif-box ccif-invoice-request-card"><h2>درخواست صدور فاکتور رسمی (اختیاری)</h2>'],
+            'billing_invoice_request' => ['type' => 'checkbox', 'label' => 'درخواست صدور فاکتور رسمی', 'class' => ['form-row-wide'], 'priority' => 1],
+            'card_1_end' => ['type' => 'html', 'priority' => 2, 'html' => '<p class="ccif-hint">در صورت نیاز به فاکتور رسمی، این گزینه را انتخاب و تمام اطلاعات خریدار را به دقت وارد نمایید.</p></div>'],
+
+            // --- Card 2 HTML Wrappers and Fields ---
+            'card_2_start' => ['type' => 'html', 'priority' => 9, 'html' => '<div class="ccif-box ccif-buyer-info-card"><h2>اطلاعات خریدار</h2>'],
+            'billing_person_type'     => ['type' => 'select', 'label' => 'نوع شخص', 'class' => ['form-row-wide'], 'options' => ['' => 'انتخاب کنید', 'real' => 'حقیقی', 'legal' => 'حقوقی'], 'priority' => 10],
+            'card_2_fields_wrapper_start' => ['type' => 'html', 'priority' => 20, 'html' => '<div class="ccif-real-person-fields-wrapper">'],
+            // Real person fields have priorities 21, 22
+            'billing_national_code'   => ['label' => 'کد ملی', 'class' => ['form-row-wide'], 'placeholder' => '۱۰ رقم بدون خط تیره', 'priority' => 23],
+            'card_2_fields_wrapper_middle' => ['type' => 'html', 'priority' => 29, 'html' => '</div><div class="ccif-legal-person-fields-wrapper">'],
+            // Legal person fields have priorities 31, 32, 33, 34
+            'card_2_fields_wrapper_end' => ['type' => 'html', 'priority' => 39, 'html' => '</div>'],
+            'card_2_end' => ['type' => 'html', 'priority' => 40, 'html' => '</div>'],
+
+            // --- Card 3 HTML Wrappers and Fields ---
+            'card_3_start' => ['type' => 'html', 'priority' => 40, 'html' => '<div class="ccif-box ccif-shipping-info-card"><h2>اطلاعات ارسال</h2>'],
+            // Our custom state/city fields
             'billing_custom_state' => [
-                'type' => 'select',
-                'label' => __('استان', 'woocommerce'),
-                'options' => [ '' => 'انتخاب کنید' ] + $iran_data['states'],
-                'class' => ['form-row-first'],
-                'priority' => 41,
-                'required' => true,
+                'type' => 'select', 'label' => __('استان', 'woocommerce'), 'options' => [ '' => 'انتخاب کنید' ] + $iran_data['states'],
+                'class' => ['form-row-first'], 'priority' => 41, 'required' => true,
             ],
             'billing_custom_city' => [
-                'type' => 'select',
-                'label' => __('شهر', 'woocommerce'),
-                'options' => [ '' => 'ابتدا استان را انتخاب کنید' ],
-                'class' => ['form-row-last'],
-                'priority' => 42,
-                'required' => true,
+                'type' => 'select', 'label' => __('شهر', 'woocommerce'), 'options' => [ '' => 'ابتدا استان را انتخاب کنید' ],
+                'class' => ['form-row-last'], 'priority' => 42, 'required' => true,
             ],
-             'billing_invoice_request' => ['type' => 'checkbox', 'label' => 'درخواست صدور فاکتور رسمی', 'class' => ['form-row-wide'], 'priority' => 1],
-            'billing_person_type'     => ['type' => 'select', 'label' => 'نوع شخص', 'class' => ['form-row-wide'], 'options' => ['' => 'انتخاب کنید', 'real' => 'حقیقی', 'legal' => 'حقوقی'], 'priority' => 10],
+            // Other address fields have priorities 51, 61, 62
+            'card_3_end' => ['type' => 'html', 'priority' => 99, 'html' => '</div>'],
+
+            // --- Other Custom Fields ---
             'billing_national_code'   => ['label' => 'کد ملی', 'class' => ['form-row-wide'], 'placeholder' => '۱۰ رقم بدون خط تیره', 'priority' => 23],
             'billing_company_name'    => ['label' => 'نام شرکت', 'class' => ['form-row-first'], 'priority' => 31],
             'billing_economic_code'   => ['label' => 'شناسه ملی/اقتصادی', 'class' => ['form-row-last'], 'priority' => 32],
