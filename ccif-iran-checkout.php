@@ -49,50 +49,8 @@ class CCIF_Iran_Checkout_Rebuild {
         // Enqueue scripts and styles
         add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_assets' ] );
 
-        // --- New Template Override Logic ---
-        // This filter forces WooCommerce to use our custom form-billing.php template
-        add_filter( 'woocommerce_locate_template', [ $this, 'override_billing_form_template' ], 10, 3 );
-
-        // This action renders the "Additional Notes" card after the billing form
-        add_action( 'woocommerce_after_checkout_billing_form', [ $this, 'render_order_notes_card' ], 15 );
-
-        // This filter tells WooCommerce to treat the city field as a dropdown, preventing AJAX issues.
-        add_filter( 'woocommerce_get_country_locale', [ $this, 'fix_iran_city_locale' ] );
-    }
-
-    public function fix_iran_city_locale( $locale ) {
-        $locale['IR']['city']['type']     = 'select';
-        $locale['IR']['city']['required'] = true;
-        // Providing default options is crucial to prevent WC's JS from replacing the field.
-        $locale['IR']['city']['options']  = [ '' => __( 'ابتدا استان را انتخاب کنید', 'woocommerce' ) ];
-        return $locale;
-    }
-
-    public function override_billing_form_template( $template, $template_name, $template_path ) {
-        // We are only interested in overriding the checkout billing form.
-        if ( 'checkout/form-billing.php' === $template_name ) {
-            // Check if our custom template file exists in the plugin directory.
-            $plugin_template_path = plugin_dir_path( __FILE__ ) . 'woocommerce/' . $template_name;
-            if ( file_exists( $plugin_template_path ) ) {
-                // If it exists, return its path so WooCommerce uses it.
-                return $plugin_template_path;
-            }
-        }
-        // Otherwise, return the default template path.
-        return $template;
-    }
-
-    public function render_order_notes_card( $checkout ) {
-        // Prevent the default order notes field from rendering in its original location
-        add_filter('woocommerce_enable_order_notes_field', '__return_false');
-
-        // Manually render the field inside our custom card structure
-        if ( ! empty( $this->order_notes_field ) ) {
-            echo '<div class="ccif-box ccif-order-notes-card">';
-            echo '<h2>توضیحات تکمیلی</h2>';
-            woocommerce_form_field( 'order_comments', $this->order_notes_field, $checkout->get_value( 'order_comments' ) );
-            echo '</div>';
-        }
+        // The new approach will use a template override, so all old layout hooks are removed.
+        // We will add the template override filter later.
     }
 
     public function validate_custom_fields() {
@@ -185,10 +143,8 @@ class CCIF_Iran_Checkout_Rebuild {
     }
 
     private function normalize_persian_string($string) {
-        // Replace common Arabic characters with Persian equivalents.
+        // Replace common Arabic characters with Persian equivalents for better matching.
         $string = str_replace(['ي', 'ك', 'آ'], ['ی', 'ک', 'ا'], $string);
-        // Remove the word "استان " (province of) from the beginning of the string.
-        $string = preg_replace('/^استان\s+/', '', $string);
         // Remove non-breaking spaces and trim whitespace from the beginning and end.
         $string = trim(str_replace('&nbsp;', ' ', $string));
         return $string;
@@ -231,13 +187,8 @@ class CCIF_Iran_Checkout_Rebuild {
                     // Find the official WooCommerce code for the current province name.
                     if (isset($normalized_name_to_code_map[$normalized_province_name])) {
                         $state_code = $normalized_name_to_code_map[$normalized_province_name];
-                        $normalized_cities = [];
-                        foreach($province['cities'] as $city_name) {
-                            // Normalize each city name to prevent data mismatches with shipping zone settings.
-                            $normalized_cities[] = $this->normalize_persian_string($city_name);
-                        }
                         // Use the official state code as the key for the cities array.
-                        $cities[$state_code] = $normalized_cities;
+                        $cities[$state_code] = $province['cities'];
                     }
                 }
             }
@@ -248,12 +199,27 @@ class CCIF_Iran_Checkout_Rebuild {
     }
 
     public function modify_checkout_fields( $fields ) {
-        $this->log_message( 'Modifying checkout fields.' );
         $iran_data = $this->load_iran_data();
 
-        // --- Custom Fields Definition ---
+        // --- 1. Define our NEW custom fields that the user will see ---
         $custom_fields = [
-            'billing_invoice_request' => ['type' => 'checkbox', 'label' => 'درخواست صدور فاکتور رسمی', 'class' => ['form-row-wide'], 'priority' => 1],
+            'billing_custom_state' => [
+                'type' => 'select',
+                'label' => __('استان', 'woocommerce'),
+                'options' => [ '' => 'انتخاب کنید' ] + $iran_data['states'],
+                'class' => ['form-row-first'],
+                'priority' => 41,
+                'required' => true,
+            ],
+            'billing_custom_city' => [
+                'type' => 'select',
+                'label' => __('شهر', 'woocommerce'),
+                'options' => [ '' => 'ابتدا استان را انتخاب کنید' ],
+                'class' => ['form-row-last'],
+                'priority' => 42,
+                'required' => true,
+            ],
+             'billing_invoice_request' => ['type' => 'checkbox', 'label' => 'درخواست صدور فاکتور رسمی', 'class' => ['form-row-wide'], 'priority' => 1],
             'billing_person_type'     => ['type' => 'select', 'label' => 'نوع شخص', 'class' => ['form-row-wide'], 'options' => ['' => 'انتخاب کنید', 'real' => 'حقیقی', 'legal' => 'حقوقی'], 'priority' => 10],
             'billing_national_code'   => ['label' => 'کد ملی', 'class' => ['form-row-wide'], 'placeholder' => '۱۰ رقم بدون خط تیره', 'priority' => 23],
             'billing_company_name'    => ['label' => 'نام شرکت', 'class' => ['form-row-first'], 'priority' => 31],
@@ -264,44 +230,27 @@ class CCIF_Iran_Checkout_Rebuild {
 
         $fields['billing'] = array_merge($fields['billing'], $custom_fields);
 
-        // --- Modify Standard Fields (Labels, Placeholders, Priorities) ---
-        // IMPORTANT: We are no longer setting the 'class' property here for default
-        // fields. This allows WooCommerce to apply its own crucial classes
-        // like 'address-field' and 'state_select', which are required for AJAX updates.
+        // --- 2. Modify the ORIGINAL WooCommerce fields ---
+        // Hide the original state and city fields. We will sync our custom fields to these with JS.
+        $fields['billing']['billing_state']['class'][] = 'ccif-hidden-field';
+        $fields['billing']['billing_city']['class'][] = 'ccif-hidden-field';
+
+        // --- 3. Adjust other standard fields as needed ---
         $fields['billing']['billing_first_name']['priority'] = 21;
         $fields['billing']['billing_last_name']['priority'] = 22;
-
-        $fields['billing']['billing_state']['type'] = 'select';
-        $fields['billing']['billing_state']['options'] = [ '' => 'انتخاب کنید' ] + $iran_data['states'];
-        $fields['billing']['billing_state']['priority'] = 41;
-
-        $fields['billing']['billing_city']['type'] = 'select';
-        $fields['billing']['billing_city']['options'] = [ '' => 'ابتدا استان را انتخاب کنید' ];
-        $fields['billing']['billing_city']['priority'] = 42;
-
         $fields['billing']['billing_address_1']['label'] = 'آدرس خیابان';
         $fields['billing']['billing_address_1']['placeholder'] = 'آدرس کامل خیابان، کوچه، پلاک، واحد';
         $fields['billing']['billing_address_1']['priority'] = 51;
-
         $fields['billing']['billing_postcode']['label'] = 'کدپستی';
         $fields['billing']['billing_postcode']['placeholder'] = 'بدون فاصله و با اعداد انگلیسی';
         $fields['billing']['billing_postcode']['priority'] = 61;
-
         $fields['billing']['billing_phone']['priority'] = 62;
 
-        // --- Unset Unwanted Fields ---
+        // --- 4. Unset fields we don't need at all ---
         unset($fields['billing']['billing_company']);
         unset($fields['billing']['billing_address_2']);
 
-        // --- Add a label to Order Notes and change placeholder ---
-        if (isset($fields['order']['order_comments'])) {
-            $fields['order']['order_comments']['label'] = 'توضیحات سفارش (اختیاری)';
-            $fields['order']['order_comments']['placeholder'] = 'یادداشت‌ها درباره سفارش شما، برای مثال نکات مهم درباره نحوه تحویل سفارش.';
-        }
-
-        // --- Reorder All Billing Fields ---
-        // This is crucial for the template to loop through them in the correct order if needed,
-        // although our template places them manually. It's good practice to keep it.
+        // --- 5. Reorder All Billing Fields ---
         uasort($fields['billing'], 'wc_checkout_fields_uasort_comparison');
 
         return $fields;
@@ -314,18 +263,15 @@ class CCIF_Iran_Checkout_Rebuild {
         wp_enqueue_style( 'ccif-checkout-css', plugin_dir_url( __FILE__ ) . 'assets/css/ccif-checkout.css', [], '6.0' );
     }
 
-    // --- Custom Layout Functions ---
-    // All old layout functions have been removed in favor of the template override.
+    // All old layout functions are removed. The layout will be handled by a template override.
 
 
     private function log_message( $message ) {
-        // Use PHP's native error_log() to ensure output goes to wp-content/debug.log
-        // when WP_DEBUG and WP_DEBUG_LOG are enabled in wp-config.php.
         if ( defined( 'WP_DEBUG' ) && WP_DEBUG === true ) {
-            if (is_array($message) || is_object($message)) {
-                $message = print_r($message, true);
+            if ( function_exists( 'wc_get_logger' ) ) {
+                $logger = wc_get_logger();
+                $logger->debug( $message, [ 'source' => 'ccif-iran-checkout' ] );
             }
-            error_log('[CCIF DEBUG] ' . $message);
         }
     }
 }
