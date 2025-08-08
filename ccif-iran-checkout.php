@@ -49,84 +49,40 @@ class CCIF_Iran_Checkout_Rebuild {
         // Enqueue scripts and styles
         add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_assets' ] );
 
-        // Custom layout hooks
-        // --- REMOVED OLD LAYOUT HOOKS ---
+        // --- New Template Override Logic ---
+        // This filter forces WooCommerce to use our custom form-billing.php template
+        add_filter( 'woocommerce_locate_template', [ $this, 'override_billing_form_template' ], 10, 3 );
 
-        // This action renders our custom layout inside the main billing section.
-        add_action( 'woocommerce_checkout_billing', [ $this, 'render_custom_form_layout' ], 5 );
+        // This action renders the "Additional Notes" card after the billing form
+        add_action( 'woocommerce_after_checkout_billing_form', [ $this, 'render_order_notes_card' ], 15 );
     }
 
-    public function remove_rendered_billing_fields( $fields ) {
-        // Unset the billing fields so WooCommerce doesn't render them again.
-        unset( $fields['billing'] );
-
-        // Clean up the filter after it has run.
-        remove_filter( 'woocommerce_checkout_fields', [ $this, 'remove_rendered_billing_fields' ], 9999 );
-
-        return $fields;
+    public function override_billing_form_template( $template, $template_name, $template_path ) {
+        // We are only interested in overriding the checkout billing form.
+        if ( 'checkout/form-billing.php' === $template_name ) {
+            // Check if our custom template file exists in the plugin directory.
+            $plugin_template_path = plugin_dir_path( __FILE__ ) . 'woocommerce/' . $template_name;
+            if ( file_exists( $plugin_template_path ) ) {
+                // If it exists, return its path so WooCommerce uses it.
+                return $plugin_template_path;
+            }
+        }
+        // Otherwise, return the default template path.
+        return $template;
     }
 
-    public function render_custom_form_layout() {
-        $checkout = WC()->checkout();
-        // We get the fields but don't unset them here.
-        $fields = $checkout->get_checkout_fields();
-        $billing_fields = $fields['billing'];
-        $order_fields = $fields['order'];
+    public function render_order_notes_card( $checkout ) {
+        // Prevent the default order notes field from rendering in its original location
+        add_filter('woocommerce_enable_order_notes_field', '__return_false');
 
-        // Start the custom layout wrapper
-        echo '<div class="ccif-checkout-form">';
-
-        // Card 1: Invoice Request
-        echo '<div class="ccif-box ccif-invoice-request-card">';
-            echo '<h2>درخواست صدور فاکتور رسمی (اختیاری)</h2>';
-            woocommerce_form_field('billing_invoice_request', $billing_fields['billing_invoice_request'], $checkout->get_value('billing_invoice_request'));
-            echo '<p class="ccif-hint">در صورت نیاز به فاکتور رسمی، این گزینه را انتخاب و تمام اطلاعات خریدار را به دقت وارد نمایید.</p>';
-        echo '</div>';
-
-        // Card 2: Buyer Information
-        echo '<div class="ccif-box ccif-buyer-info-card">';
-            echo '<h2>اطلاعات خریدار</h2>';
-            woocommerce_form_field('billing_person_type', $billing_fields['billing_person_type'], $checkout->get_value('billing_person_type'));
-
-            // Real Person Fields Wrapper
-            echo '<div class="ccif-real-person-fields-wrapper">';
-                woocommerce_form_field('billing_first_name', $billing_fields['billing_first_name'], $checkout->get_value('billing_first_name'));
-                woocommerce_form_field('billing_last_name', $billing_fields['billing_last_name'], $checkout->get_value('billing_last_name'));
-                woocommerce_form_field('billing_national_code', $billing_fields['billing_national_code'], $checkout->get_value('billing_national_code'));
-            echo '</div>';
-
-            // Legal Person Fields Wrapper
-            echo '<div class="ccif-legal-person-fields-wrapper">';
-                woocommerce_form_field('billing_company_name', $billing_fields['billing_company_name'], $checkout->get_value('billing_company_name'));
-                woocommerce_form_field('billing_economic_code', $billing_fields['billing_economic_code'], $checkout->get_value('billing_economic_code'));
-                woocommerce_form_field('billing_agent_first_name', $billing_fields['billing_agent_first_name'], $checkout->get_value('billing_agent_first_name'));
-                woocommerce_form_field('billing_agent_last_name', $billing_fields['billing_agent_last_name'], $checkout->get_value('billing_agent_last_name'));
-            echo '</div>';
-        echo '</div>';
-
-        // Card 3: Shipping Information
-        echo '<div class="ccif-box ccif-shipping-info-card">';
-            echo '<h2>اطلاعات ارسال</h2>';
-            woocommerce_form_field('billing_state', $billing_fields['billing_state'], $checkout->get_value('billing_state'));
-            woocommerce_form_field('billing_city', $billing_fields['billing_city'], $checkout->get_value('billing_city'));
-            woocommerce_form_field('billing_address_1', $billing_fields['billing_address_1'], $checkout->get_value('billing_address_1'));
-            woocommerce_form_field('billing_postcode', $billing_fields['billing_postcode'], $checkout->get_value('billing_postcode'));
-            woocommerce_form_field('billing_phone', $billing_fields['billing_phone'], $checkout->get_value('billing_phone'));
-        echo '</div>';
-
-        // Card 4: Additional Notes
-        echo '<div class="ccif-box ccif-order-notes-card">';
+        // Manually render the field inside our custom card structure
+        if ( ! empty( $this->order_notes_field ) ) {
+            echo '<div class="ccif-box ccif-order-notes-card">';
             echo '<h2>توضیحات تکمیلی</h2>';
-            woocommerce_form_field('order_comments', $order_fields['order_comments'], $checkout->get_value('order_comments'));
-        echo '</div>';
-
-        echo '</div>'; // Close .ccif-checkout-form
-
-        // IMPORTANT: Add a filter to remove the original billing fields *after* we have rendered them.
-        // This prevents WooCommerce from rendering them a second time.
-        add_filter( 'woocommerce_checkout_fields', [ $this, 'remove_rendered_billing_fields' ], 9999 );
+            woocommerce_form_field( 'order_comments', $this->order_notes_field, $checkout->get_value( 'order_comments' ) );
+            echo '</div>';
+        }
     }
-
 
     public function validate_custom_fields() {
         $is_invoice_requested = isset( $_POST['billing_invoice_request'] ) && $_POST['billing_invoice_request'] == 1;
@@ -290,9 +246,10 @@ class CCIF_Iran_Checkout_Rebuild {
 
         $fields['billing'] = array_merge($fields['billing'], $custom_fields);
 
-        // --- Modify Standard Fields ---
+        // --- Modify Standard Fields (Labels, Placeholders, Classes) ---
         $fields['billing']['billing_first_name']['class'] = ['form-row-first'];
         $fields['billing']['billing_first_name']['priority'] = 21;
+
         $fields['billing']['billing_last_name']['class'] = ['form-row-last'];
         $fields['billing']['billing_last_name']['priority'] = 22;
 
@@ -329,8 +286,10 @@ class CCIF_Iran_Checkout_Rebuild {
             $fields['order']['order_comments']['placeholder'] = 'یادداشت‌ها درباره سفارش شما، برای مثال نکات مهم درباره نحوه تحویل سفارش.';
         }
 
-        // We don't sort anymore because we are manually rendering.
-        // uasort($fields['billing'], 'wc_checkout_fields_uasort_comparison');
+        // --- Reorder All Billing Fields ---
+        // This is crucial for the template to loop through them in the correct order if needed,
+        // although our template places them manually. It's good practice to keep it.
+        uasort($fields['billing'], 'wc_checkout_fields_uasort_comparison');
 
         return $fields;
     }
@@ -343,7 +302,7 @@ class CCIF_Iran_Checkout_Rebuild {
     }
 
     // --- Custom Layout Functions ---
-    // --- REMOVED ALL OLD LAYOUT FUNCTIONS ---
+    // All old layout functions have been removed in favor of the template override.
 
 
     private function log_message( $message ) {
