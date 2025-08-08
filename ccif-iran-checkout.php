@@ -257,34 +257,29 @@ class CCIF_Iran_Checkout_Rebuild {
 
         $fields['billing'] = array_merge($fields['billing'], $custom_fields);
 
-        // --- Modify Standard Fields (Labels, Placeholders, Classes) ---
-        $fields['billing']['billing_first_name']['class'] = ['form-row-first'];
+        // --- Modify Standard Fields (Labels, Placeholders, Priorities) ---
+        // IMPORTANT: We are no longer setting the 'class' property here for default
+        // fields. This allows WooCommerce to apply its own crucial classes
+        // like 'address-field' and 'state_select', which are required for AJAX updates.
         $fields['billing']['billing_first_name']['priority'] = 21;
-
-        $fields['billing']['billing_last_name']['class'] = ['form-row-last'];
         $fields['billing']['billing_last_name']['priority'] = 22;
 
         $fields['billing']['billing_state']['type'] = 'select';
-        $fields['billing']['billing_state']['class'] = ['form-row-first'];
         $fields['billing']['billing_state']['options'] = [ '' => 'انتخاب کنید' ] + $iran_data['states'];
         $fields['billing']['billing_state']['priority'] = 41;
 
         $fields['billing']['billing_city']['type'] = 'select';
-        $fields['billing']['billing_city']['class'] = ['form-row-last'];
         $fields['billing']['billing_city']['options'] = [ '' => 'ابتدا استان را انتخاب کنید' ];
         $fields['billing']['billing_city']['priority'] = 42;
 
         $fields['billing']['billing_address_1']['label'] = 'آدرس خیابان';
         $fields['billing']['billing_address_1']['placeholder'] = 'آدرس کامل خیابان، کوچه، پلاک، واحد';
-        $fields['billing']['billing_address_1']['class'] = ['form-row-wide'];
         $fields['billing']['billing_address_1']['priority'] = 51;
 
         $fields['billing']['billing_postcode']['label'] = 'کدپستی';
         $fields['billing']['billing_postcode']['placeholder'] = 'بدون فاصله و با اعداد انگلیسی';
-        $fields['billing']['billing_postcode']['class'] = ['form-row-first'];
         $fields['billing']['billing_postcode']['priority'] = 61;
 
-        $fields['billing']['billing_phone']['class'] = ['form-row-last'];
         $fields['billing']['billing_phone']['priority'] = 62;
 
         // --- Unset Unwanted Fields ---
