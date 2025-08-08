@@ -61,8 +61,10 @@ class CCIF_Iran_Checkout_Rebuild {
     }
 
     public function fix_iran_city_locale( $locale ) {
-        $locale['IR']['city']['type'] = 'select';
+        $locale['IR']['city']['type']     = 'select';
         $locale['IR']['city']['required'] = true;
+        // Providing default options is crucial to prevent WC's JS from replacing the field.
+        $locale['IR']['city']['options']  = [ '' => __( 'ابتدا استان را انتخاب کنید', 'woocommerce' ) ];
         return $locale;
     }
 
