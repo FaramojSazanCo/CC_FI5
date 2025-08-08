@@ -223,14 +223,32 @@ class CCIF_Iran_Checkout_Rebuild {
             $normalized_name_to_code_map[$this->normalize_persian_string($name)] = $code;
         }
 
+        // --- DEBUG LOGGING ---
+        $this->log_message("--- CCIF Province Matching Debug ---");
+        $this->log_message("WooCommerce's list of states: " . print_r($wc_states, true));
+        $this->log_message("Plugin's normalized name-to-code map: " . print_r($normalized_name_to_code_map, true));
+        $this->log_message("------------------------------------");
+        // --- END DEBUG LOGGING ---
+
         $cities = [];
         if (is_array($custom_data)) {
             foreach ($custom_data as $province) {
                 if (isset($province['name']) && isset($province['cities'])) {
-                    $normalized_province_name = $this->normalize_persian_string($province['name']);
+
+                    // --- DEBUG LOGGING ---
+                    $original_province_name = $province['name'];
+                    $normalized_province_name = $this->normalize_persian_string($original_province_name);
+                    $this->log_message("Processing province: '{$original_province_name}' -> Normalized to: '{$normalized_province_name}'");
+                    // --- END DEBUG LOGGING ---
+
                     // Find the official WooCommerce code for the current province name.
                     if (isset($normalized_name_to_code_map[$normalized_province_name])) {
                         $state_code = $normalized_name_to_code_map[$normalized_province_name];
+
+                        // --- DEBUG LOGGING ---
+                        $this->log_message("  -> MATCH FOUND! Associated with WC code: {$state_code}");
+                        // --- END DEBUG LOGGING ---
+
                         $normalized_cities = [];
                         foreach($province['cities'] as $city_name) {
                             // Normalize each city name to prevent data mismatches with shipping zone settings.
@@ -238,6 +256,10 @@ class CCIF_Iran_Checkout_Rebuild {
                         }
                         // Use the official state code as the key for the cities array.
                         $cities[$state_code] = $normalized_cities;
+                    } else {
+                        // --- DEBUG LOGGING ---
+                        $this->log_message("  -> MATCH NOT FOUND in the WooCommerce list.");
+                        // --- END DEBUG LOGGING ---
                     }
                 }
             }
