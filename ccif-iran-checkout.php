@@ -49,8 +49,36 @@ class CCIF_Iran_Checkout_Rebuild {
         // Enqueue scripts and styles
         add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_assets' ] );
 
-        // The new approach will use a template override, so all old layout hooks are removed.
-        // We will add the template override filter later.
+        // --- New Template Override Logic ---
+        add_filter( 'woocommerce_locate_template', [ $this, 'override_billing_form_template' ], 10, 3 );
+        add_action( 'woocommerce_after_checkout_form', [ $this, 'render_order_notes_card' ], 10 );
+    }
+
+    public function override_billing_form_template( $template, $template_name, $template_path ) {
+        if ( 'checkout/form-billing.php' === $template_name ) {
+            $plugin_template_path = plugin_dir_path( __FILE__ ) . 'woocommerce/' . $template_name;
+            if ( file_exists( $plugin_template_path ) ) {
+                return $plugin_template_path;
+            }
+        }
+        return $template;
+    }
+
+    public function render_order_notes_card( $checkout ) {
+        if ( ! is_a( $checkout, 'WC_Checkout' ) ) {
+            $checkout = WC()->checkout();
+        }
+
+        // Prevent the default order notes field from rendering in its original location
+        add_filter('woocommerce_enable_order_notes_field', '__return_false');
+
+        // Manually render the field inside our custom card structure
+        if ( ! empty( $this->order_notes_field ) ) {
+            echo '<div class="ccif-box ccif-order-notes-card">';
+            echo '<h2>توضیحات تکمیلی</h2>';
+            woocommerce_form_field( 'order_comments', $this->order_notes_field, $checkout->get_value( 'order_comments' ) );
+            echo '</div>';
+        }
     }
 
     public function validate_custom_fields() {
@@ -268,10 +296,11 @@ class CCIF_Iran_Checkout_Rebuild {
 
     private function log_message( $message ) {
         if ( defined( 'WP_DEBUG' ) && WP_DEBUG === true ) {
-            if ( function_exists( 'wc_get_logger' ) ) {
-                $logger = wc_get_logger();
-                $logger->debug( $message, [ 'source' => 'ccif-iran-checkout' ] );
+            // Switched to native error_log for reliability
+            if (is_array($message) || is_object($message)) {
+                $message = print_r($message, true);
             }
+            error_log('[CCIF DEBUG] ' . $message);
         }
     }
 }

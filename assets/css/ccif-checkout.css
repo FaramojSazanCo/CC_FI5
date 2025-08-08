@@ -167,7 +167,7 @@
 }
 
 /* --- Specific Box Styling --- */
-.invoice-request-box {
+.ccif-invoice-request-card {
     background-color: #e8f5e9; /* Light green */
     border-color: #a5d6a7; /* A slightly darker green border */
 }
@@ -180,14 +180,18 @@
     vertical-align: -2px;
 }
 
-.ccif-person-info-header::before {
+.ccif-invoice-request-card h2::before {
+    content: '🧾'; /* Receipt Icon */
+}
+
+.ccif-buyer-info-card h2::before {
     content: '👤'; /* User icon */
 }
 
-.ccif-address-info-header::before {
+.ccif-shipping-info-card h2::before {
     content: '🚚'; /* Truck/Shipping icon */
 }
 
-.ccif-order-notes-header::before {
+.ccif-order-notes-card h2::before {
     content: '📝'; /* Notes icon */
 }
