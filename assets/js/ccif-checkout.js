@@ -59,8 +59,23 @@ jQuery(function($) {
         var state = $('#billing_state').val();
         var $cityField = $('#billing_city');
         var cities = (ccifData && ccifData.cities) ? ccifData.cities : {};
-
         var currentCity = $cityField.val();
+
+        // Avoid repopulating if the city is already correctly set, unless the state is empty.
+        if ( $cityField.children().length > 1 && currentCity && state ) {
+            // If a valid city is selected and the state hasn't changed to the default, do nothing.
+            // This prevents the city from being reset when other parts of the checkout update.
+            var cityExists = false;
+            if(cities[state]) {
+                $.each(cities[state], function(index, cityName) {
+                    if(cityName === currentCity) {
+                        cityExists = true;
+                        return false; // break the loop
+                    }
+                });
+            }
+            if(cityExists) return;
+        }
 
         $cityField.empty().append('<option value="">' + 'ابتدا استان را انتخاب کنید' + '</option>');
 
@@ -78,34 +93,23 @@ jQuery(function($) {
     // --- Event Handlers ---
     $('body').on('change', '#billing_person_type', togglePersonFields);
     $('body').on('change', '#billing_invoice_request', updateRequiredStatus);
-    $('body').on('change', '#billing_state', populateCities);
+
+    // We no longer populate cities on direct change to avoid race conditions.
+    // Instead, we rely *only* on the 'updated_checkout' event.
+    // $('body').on('change', '#billing_state', populateCities);
 
     // --- Initial Execution on Page Load ---
     togglePersonFields();
     updateRequiredStatus();
 
-    // Populate cities on load if a state is already selected (e.g., on form validation error)
-    // Also, trigger it on updated_checkout which is fired by WooCommerce after state field changes.
+    // The 'updated_checkout' event is the most reliable hook. It fires after WC has
+    // finished its AJAX updates. We will re-populate the cities every time to ensure
+    // they are correct, as this event fires after a state change.
     $(document.body).on('updated_checkout', function() {
-        // This is our final debug point. Let's see what the city field looks like AFTER
-        // WooCommerce has finished its own AJAX updates.
-        var cityFieldHTML = $('#billing_city_field').html();
-        console.log('--- CCIF FINAL DEBUG ---');
-        console.log('Event "updated_checkout" fired.');
-        console.log('HTML content of city field wrapper (#billing_city_field):');
-        console.log(cityFieldHTML);
-        console.log('----------------------');
-
-        // A small delay can help ensure our script runs after WooCommerce has finished its own updates.
-        setTimeout(function() {
-            if ($('#billing_state').val() && $('#billing_city').children().length <= 1) {
-                populateCities();
-            }
-        }, 100);
+        populateCities();
     });
 
     // Initial population for page loads where state is already set.
-    if ($('#billing_state').val()) {
-        populateCities();
-    }
+    // We trigger 'updated_checkout' manually to use the same reliable logic.
+    $(document.body).trigger('updated_checkout');
 });
