@@ -56,8 +56,18 @@ jQuery(function($) {
      * Populates the city dropdown based on the selected state.
      */
     function populateCities() {
+        console.log('CCIF DEBUG: populateCities() triggered.');
+
         var state = $('#billing_state').val();
         var $cityField = $('#billing_city');
+
+        console.log('CCIF DEBUG: Selected state code:', state);
+        console.log('CCIF DEBUG: Full ccifData object:', ccifData);
+
+        // It's possible the `cities` variable is not in the global scope inside this function
+        // in some JS environments. Accessing it directly from ccifData is more robust.
+        var cities = (ccifData && ccifData.cities) ? ccifData.cities : {};
+        console.log('CCIF DEBUG: Cities object being used:', cities);
 
         // Remember the current value if it exists
         var currentCity = $cityField.val();
@@ -65,6 +75,7 @@ jQuery(function($) {
         $cityField.empty().append('<option value="">' + 'ابتدا استان را انتخاب کنید' + '</option>');
 
         if (state && cities[state]) {
+            console.log('CCIF DEBUG: Match found for state ' + state + '. Cities:', cities[state]);
             $.each(cities[state], function(index, cityName) {
                 // Create new option, select it if it matches the remembered value
                 $cityField.append($('<option>', {
@@ -73,6 +84,8 @@ jQuery(function($) {
                     selected: cityName === currentCity
                 }));
             });
+        } else {
+            console.log('CCIF DEBUG: No match found for state ' + state + ' in cities object.');
         }
     }
 
